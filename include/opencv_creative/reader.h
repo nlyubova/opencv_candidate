@@ -40,6 +40,9 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <image_transport/image_transport.h>
+#include <sensor_msgs/image_encodings.h>
+
 namespace DepthSense
 {
   class Context;
@@ -93,6 +96,24 @@ namespace creative
      */
     static void
     getImages(std::vector<cv::Mat> &images);
+
+    static sensor_msgs::Image
+    getDataDepth();
+
+    static sensor_msgs::Image
+    getDataColor();
+
+    static sensor_msgs::CameraInfo
+    getDataCamInfoColor();
+
+    static sensor_msgs::CameraInfo
+    getDataCamInfoDepth();
+
+    static void
+    setCamInfoColor(const sensor_msgs::CameraInfo &camInfoColor);
+
+    static void
+    setCamInfoDepth(const sensor_msgs::CameraInfo &camInfoDepth);
 
   private:
     static ReaderImpl *impl_;

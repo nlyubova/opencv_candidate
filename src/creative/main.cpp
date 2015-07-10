@@ -39,39 +39,112 @@
 
 #include <iostream>
 
+#include <DepthSense.hxx>
+#include <ros/ros.h>
+#include <camera_info_manager/camera_info_manager.h>
+
 int
 main(int argc, char ** argv)
 {
-  cv::VideoWriter video_writer("video.mpg", CV_FOURCC('P', 'I', 'M', '1'), 30, cv::Size(320, 240), false);
-  creative::Reader reader;
-  creative::Reader::setImageTypes(creative::Reader::COLOR + creative::Reader::DEPTH + creative::Reader::POINTS3D);
+  // Initialize ROS
+  ros::init(argc, argv, "creative_bringup_node");
 
-  creative::Reader::initialize();
-  cv::namedWindow("color", 0);
-  cv::namedWindow("depth", 0);
-  for (size_t index = 0; index < 30*30; ++index)
+  ros::NodeHandle nh("~");
+
+  ros::Publisher pub_rgb_info;
+  ros::Publisher pub_depth_info;
+  image_transport::Publisher pub_rgb;
+  image_transport::Publisher pub_depth;
+  sensor_msgs::CameraInfo rgb_info;
+  sensor_msgs::CameraInfo depth_info;
+
+  //cv::VideoWriter video_writer("video.mpg", CV_FOURCC('P', 'I', 'M', '1'), 30, cv::Size(320, 240), false);
+  creative::Reader reader;
+  reader.setImageTypes(creative::Reader::COLOR + creative::Reader::DEPTH + creative::Reader::POINTS3D);
+
+  bool visualize = false;
+
+  reader.initialize();
+  //creative::Reader::initialize();
+  //cv::namedWindow("color", 0);
+  //cv::namedWindow("depth", 0);
+
+  // Get frame id from parameter server
+  std::string softkinetic_link;
+  if (!nh.hasParam("camera_link"))
   {
-    std::vector<cv::Mat> images;
-    creative::Reader::getImages(images);
+    ROS_ERROR_STREAM("For " << ros::this_node::getName() << ", parameter 'camera_link' is missing.");
+  }
+
+  nh.param<std::string>("camera_link", softkinetic_link, "softkinetic_link");
+
+  // Initialize image transport object
+  image_transport::ImageTransport it(nh);
+
+  // Initialize publishers
+  pub_rgb = it.advertise("rgb/image_color", 1);
+  pub_depth = it.advertise("depth/image_raw", 1);
+  pub_depth_info = nh.advertise<sensor_msgs::CameraInfo>("depth/camera_info", 1);
+  pub_rgb_info = nh.advertise<sensor_msgs::CameraInfo>("rgb/camera_info", 1);
+
+  // Fill in the color and depth images message header frame id
+  std::string colorFrame, depthFrame;
+  if (!nh.getParam("rgb_optical_frame", colorFrame))
+    colorFrame = "/softkinetic_rgb_optical_frame";
+
+  if (!nh.getParam("depth_optical_frame", depthFrame))
+    depthFrame = "/softkinetic_depth_optical_frame";
+
+  std::string calibration_file;
+  if (nh.getParam("rgb_calibration_file", calibration_file))
+  {
+
+    camera_info_manager::CameraInfoManager camera_info_manager(nh, "senz3d", "file://" + calibration_file);
+    rgb_info = camera_info_manager.getCameraInfo();
+  }
+
+  if (nh.getParam("depth_calibration_file", calibration_file))
+  {
+    camera_info_manager::CameraInfoManager camera_info_manager(nh, "senz3d", "file://" + calibration_file);
+    depth_info = camera_info_manager.getCameraInfo();
+  }
+
+  rgb_info.header.frame_id = colorFrame.c_str();
+  reader.setCamInfoColor(rgb_info);
+
+  depth_info.header.frame_id = depthFrame.c_str();
+  reader.setCamInfoDepth(depth_info);
+
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
+  while(ros::ok())
+  {
+    /*std::vector<cv::Mat> images(3);
+    reader.getImages(images);
     cv::Mat color, depth, points3d;
     color = images[0];
     depth = images[1];
     points3d = images[2];
-    std::cout << points3d.cols;
+
     if (!color.empty())
       cv::imshow("color", color);
 
     if (!depth.empty())
     {
       cv::Mat visible_depth;
-      // 500mm is 255
-      // 100mm is 0
       depth.convertTo(visible_depth, CV_8U, 255./400., -100);
-      video_writer << visible_depth;
       cv::imshow("depth", visible_depth);
     }
 
     if ((!color.empty()) || (!depth.empty()))
-      cv::waitKey(10);
+      cv::waitKey(10);*/
+
+    //color image
+    pub_rgb.publish(reader.getDataColor());
+    pub_rgb_info.publish(reader.getDataCamInfoColor());
+    //depth image
+    pub_depth.publish(reader.getDataDepth());
+    pub_depth_info.publish(reader.getDataCamInfoDepth());
   }
+  ros::shutdown();
 }
