@@ -42,6 +42,7 @@
 
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/PointCloud2.h>
 
 namespace DepthSense
 {
@@ -114,6 +115,9 @@ namespace creative
 
     static void
     setCamInfoDepth(const sensor_msgs::CameraInfo &camInfoDepth);
+
+    static sensor_msgs::PointCloud2
+    getDataCloud();
 
   private:
     static ReaderImpl *impl_;

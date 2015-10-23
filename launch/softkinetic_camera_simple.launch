@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!--
+Demo launch file to run single softkinetic camera in stand alone (no other /tf) setup with Rviz
+The arguments given are the device indices of the cameras determined by the DepthSense deamon.
+-->
+<launch>
+  <node name="softkinetic_camera" pkg="opencv_candidate" type="creative_bringup_node" args="0" output="screen" >
+    <param name="camera_link" type="string" value="/softkinetic_camera_frame" />
+      <!-- <param name="rgb_optical_frame" type="string" value="/softkinetic_camera_rgb_optical_frame" />
+      <param name="depth_optical_frame" type="string" value="/softkinetic_camera_depth_optical_frame" /> -->
+    <param name="rgb_optical_frame" type="string" value="/softkinetic_camera_depth_optical_frame" />
+    <param name="depth_optical_frame" type="string" value="/softkinetic_camera_depth_optical_frame" />
+    <!-- <param name="rgb_calibration_file" type="string" value="$(find softkinetic_camera)/resources/calibration_rgb.yaml" /> -->
+
+  </node>
+
+</launch>

@@ -43,6 +43,8 @@
 #include <ros/ros.h>
 #include <camera_info_manager/camera_info_manager.h>
 
+#include <sensor_msgs/PointCloud2.h>
+
 int
 main(int argc, char ** argv)
 {
@@ -57,6 +59,8 @@ main(int argc, char ** argv)
   image_transport::Publisher pub_depth;
   sensor_msgs::CameraInfo rgb_info;
   sensor_msgs::CameraInfo depth_info;
+
+  ros::Publisher pub_cloud;
 
   //cv::VideoWriter video_writer("video.mpg", CV_FOURCC('P', 'I', 'M', '1'), 30, cv::Size(320, 240), false);
   creative::Reader reader;
@@ -82,10 +86,12 @@ main(int argc, char ** argv)
   image_transport::ImageTransport it(nh);
 
   // Initialize publishers
-  pub_rgb = it.advertise("rgb/image_color", 1);
+  pub_rgb = it.advertise("rgb/image_raw", 1); //color
   pub_depth = it.advertise("depth/image_raw", 1);
   pub_depth_info = nh.advertise<sensor_msgs::CameraInfo>("depth/camera_info", 1);
   pub_rgb_info = nh.advertise<sensor_msgs::CameraInfo>("rgb/camera_info", 1);
+
+  pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("points", 1);
 
   // Fill in the color and depth images message header frame id
   std::string colorFrame, depthFrame;
@@ -145,6 +151,9 @@ main(int argc, char ** argv)
     //depth image
     pub_depth.publish(reader.getDataDepth());
     pub_depth_info.publish(reader.getDataCamInfoDepth());
+
+    //point cloud
+    //pub_cloud.publish(reader.getDataCloud());
   }
   ros::shutdown();
 }

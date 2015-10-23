@@ -15,6 +15,8 @@ find_package(catkin REQUIRED
     std_msgs
     image_transport
     camera_info_manager
+    #cv_bridge
+    pcl_ros
 )
 
 include_directories(SYSTEM
@@ -25,7 +27,7 @@ include_directories(SYSTEM
 )
 
 add_library(opencv_creative SHARED creative.cpp)
-
+# Sensor.cpp Sensor.h
 target_link_libraries(opencv_creative ${Boost_LIBRARIES}
                                       ${OpenCV_LIBRARIES}
                                       ${SOFTKINETIC_LIBRARIES}

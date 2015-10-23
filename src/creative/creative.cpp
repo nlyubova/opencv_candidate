@@ -38,9 +38,27 @@
 
 #include <opencv_creative/reader.h>
 
+//#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+
 #include <DepthSense.hxx>
 
 #include <iostream>
+
+//for the pointcloud
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud_conversion.h>
+
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/range_image/range_image.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/io/io.h>
+/*#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/frustum_culling.h>*/
 
 namespace creative
 {
@@ -195,14 +213,175 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
       color_cond_.notify_all();
     }
 
-    static void
+    /*static void
     onNewDepthSample(DepthSense::DepthNode obj, DepthSense::DepthNode::NewSampleReceivedData data)
     {
       // Read the color buffer and display
-      /*int32_t w, h;
+      int32_t w, h;
       DepthSense::FrameFormat_toResolution(data.captureConfiguration.frameFormat, &w, &h);
-      cv::Mat depth_single(h, w, CV_32FC1, const_cast<void*>((const void*) (data.depthMapFloatingPoint)));*/
+      cv::Mat depth_single(h, w, CV_16UC1, const_cast<void*>((const void*) (data.depthMap)));
+      {
+       boost::unique_lock<boost::mutex> lock(color_mutex_);
+       depth_single.copyTo(depth_);
+      }
+      depth_cond_.notify_all();
+    }*/
 
+    /*static void
+    onNewDepthSample(DepthSense::DepthNode obj, DepthSense::DepthNode::NewSampleReceivedData data)
+    {
+      // Set the size, at first time
+      if (img_depth_.data.empty())
+      {
+        int32_t w, h;
+        FrameFormat_toResolution(data.captureConfiguration.frameFormat, &w, &h);
+
+        img_depth_.width = w;
+        img_depth_.height = h;
+        img_depth_.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+        //img_depth_.is_bigendian = 0;
+        img_depth_.step = sizeof(uchar) * w;
+        img_depth_.data.resize(w * h * sizeof(uchar));
+
+        img_rgb_.width  = w;
+        img_rgb_.height = h;
+        img_rgb_.data.resize(w * h * 3);
+        img_rgb_.step = w * 3;
+
+        // fill camera info with the parameters provided by the camera
+        if (rgb_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.colorIntrinsics, rgb_info_);
+
+        if (depth_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.depthIntrinsics, depth_info_);
+      }
+
+      {
+        boost::unique_lock<boost::mutex> lock(depth_mutex_);
+
+        cv::Mat depth_single(img_depth_.height, img_depth_.width, CV_16UC1, const_cast<void*>((const void*) (data.depthMap)));
+        //std::memcpy(img_depth_.data.data(),  depth_single.ptr(),  img_depth_.data.size());
+
+        cv_bridge::CvImage img = cv_bridge::CvImage(img_depth_.header, sensor_msgs::image_encodings::MONO16, depth_single);
+        sensor_msgs::ImagePtr img_depth_ptr = img.toImageMsg();
+        sensor_msgs::Image imgs = *img_depth_ptr.get();
+        img_depth_ = imgs;
+
+        img_depth_.header.stamp = ros::Time::now();
+        depth_info_.header = img_depth_.header;
+      }
+      depth_cond_.notify_all();
+    }*/
+
+    /*static void
+    onNewDepthSample(DepthSense::DepthNode obj, DepthSense::DepthNode::NewSampleReceivedData data)
+    {
+      // Set the size, at first time
+      if (img_depth_.data.empty())
+      {
+        int32_t w, h;
+        FrameFormat_toResolution(data.captureConfiguration.frameFormat, &w, &h);
+
+        img_depth_.width = w;
+        img_depth_.height = h;
+        img_depth_.encoding = sensor_msgs::image_encodings::MONO16;
+        //img_depth_.is_bigendian = 0;
+        img_depth_.step = sizeof(int16_t) * w;
+        img_depth_.data.resize(w * h * sizeof(int16_t));
+
+        img_rgb_.width  = w;
+        img_rgb_.height = h;
+        img_rgb_.data.resize(w * h * 3);
+        img_rgb_.step = w * 3;
+
+        // fill camera info with the parameters provided by the camera
+        if (rgb_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.colorIntrinsics, rgb_info_);
+
+        if (depth_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.depthIntrinsics, depth_info_);
+      }
+
+      {
+        boost::unique_lock<boost::mutex> lock(depth_mutex_);
+
+        //cv::Mat depth_single(img_depth_.height, img_depth_.width, CV_32FC1, const_cast<void*>((const void*) (data.depthMap)));
+        //std::memcpy(img_depth_.data.data(),  depth_single.ptr(),  img_depth_.data.size());
+        //std::memcpy(img_depth_.data.data(), data.depthMapFloatingPoint, img_depth_.data.size());
+        std::memcpy(img_depth_.data.data(), data.depthMap, img_depth_.data.size());
+        //cv::Mat depth_single(h, w, CV_16UC1, const_cast<void*>((const void*) (data.depthMap)));
+
+        img_depth_.header.stamp = ros::Time::now();
+        depth_info_.header = img_depth_.header;
+      }
+      depth_cond_.notify_all();
+    }
+*/
+    /*static void
+    onNewDepthSample(DepthSense::DepthNode obj, DepthSense::DepthNode::NewSampleReceivedData data)
+    {
+      // Set the size, at first time
+      if (img_depth_.data.empty())
+      {
+        int32_t w, h;
+        FrameFormat_toResolution(data.captureConfiguration.frameFormat, &w, &h);
+
+        img_depth_.width = w;
+        img_depth_.height = h;
+        img_depth_.encoding = sensor_msgs::image_encodings::MONO16;
+        img_depth_.step = sizeof(uchar) * w;
+        img_depth_.data.resize(w * h * sizeof(uchar));
+
+        img_rgb_.width  = w;
+        img_rgb_.height = h;
+        img_rgb_.data.resize(w * h * 3);
+        img_rgb_.step = w * 3;
+
+        // fill camera info with the parameters provided by the camera
+        if (rgb_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.colorIntrinsics, rgb_info_);
+
+        if (depth_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.depthIntrinsics, depth_info_);
+      }
+
+      {
+        sensor_msgs::Image img_depth;
+        img_depth.width = img_rgb_.width;
+        img_depth.height = img_rgb_.height;
+        img_depth.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+        img_depth.is_bigendian = 0;
+        img_depth.step = sizeof(float) * img_depth.width;
+        img_depth.data.resize(img_depth.width * img_depth.height * sizeof(float));
+
+        std::memcpy(img_depth.data.data(), data.depthMapFloatingPoint, img_depth.data.size());
+        for (int count = 0; count < img_depth.width * img_depth.height; count++)
+        {
+          // Saturated pixels on depthMapFloatingPoint have -1 value, but on openni are NaN
+          if (data.depthMapFloatingPoint[count] < 0.0)
+          {
+            *reinterpret_cast<float*>(&img_depth.data[count*sizeof(float)]) =
+                std::numeric_limits<float>::quiet_NaN();
+                  continue;
+          }
+        }
+
+        boost::unique_lock<boost::mutex> lock(depth_mutex_);
+        cv_bridge::CvImagePtr img = cv_bridge::toCvCopy(img_depth, sensor_msgs::image_encodings::MONO16);
+        sensor_msgs::ImagePtr img_depth_ptr = img->toImageMsg();
+        sensor_msgs::Image imgs = *img_depth_ptr.get();
+        img_depth_ = imgs;
+
+
+        img_depth_.header.stamp = ros::Time::now();
+        depth_info_.header = img_depth_.header;
+      }
+      depth_cond_.notify_all();
+    }*/
+
+    static void
+    onNewDepthSample(DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data)
+    {
       // Set the size, at first time
       if (img_depth_.data.empty())
       {
@@ -226,12 +405,17 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
           setupCameraInfo(data.stereoCameraParameters.colorIntrinsics, rgb_info_);
 
         if (depth_info_.D.size() == 0)
+        {
           setupCameraInfo(data.stereoCameraParameters.depthIntrinsics, depth_info_);
+          depth_info_.K[0] = 252.12; //measured by me
+          depth_info_.P[0] = depth_info_.K[0];
+          depth_info_.K[4] = 252.72;
+          depth_info_.P[5] = depth_info_.K[4];
+        }
       }
 
       {
         boost::unique_lock<boost::mutex> lock(depth_mutex_);
-        //depth_single.copyTo(depth_);
 
         std::memcpy(img_depth_.data.data(), data.depthMapFloatingPoint, img_depth_.data.size());
         for (int count = 0; count < img_depth_.width * img_depth_.height; count++)
@@ -249,7 +433,89 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
         depth_info_.header = img_depth_.header;
       }
       depth_cond_.notify_all();
+
+      /*pcl::PointCloud<pcl::PointXYZRGB> current_cloud;
+        current_cloud.header.frame_id = "/softkinetic_camera_depth_optical_frame";
+        //cloud.header.stamp = ros::Time::now(); //g_dFrames++;
+
+        current_cloud.height = img_depth_.height;
+        current_cloud.width = img_depth_.width;
+        current_cloud.is_dense = true;
+        current_cloud.points.resize(img_depth_.width*img_depth_.height);
+
+        int count = 0;
+        for(int i = 1;i < img_depth_.height ;i++){
+          for(int j = 1;j < img_depth_.width; j++){
+             current_cloud.points[count].x = data.verticesFloatingPoint[count].x;
+             current_cloud.points[count].y = -data.verticesFloatingPoint[count].y;
+             if(data.verticesFloatingPoint[count].z == 32001){
+              current_cloud.points[count].z = 0;
+             }else{
+              current_cloud.points[count].z = data.verticesFloatingPoint[count].z;
+             }
+             count++;
+          }
+        }
+
+        pcl::toROSMsg(current_cloud, cloud_);*/
     }
+
+    //the one working
+    /*static void
+    onNewDepthSample(DepthSense::DepthNode obj, DepthSense::DepthNode::NewSampleReceivedData data)
+    {
+      // Set the size, at first time
+      if (img_depth_.data.empty())
+      {
+        int32_t w, h;
+        FrameFormat_toResolution(data.captureConfiguration.frameFormat, &w, &h);
+
+        img_depth_.width = w;
+        img_depth_.height = h;
+        img_depth_.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+        img_depth_.is_bigendian = 0;
+        img_depth_.step = sizeof(float) * w;
+        img_depth_.data.resize(w * h * sizeof(float));
+
+        img_rgb_.width  = w;
+        img_rgb_.height = h;
+        img_rgb_.data.resize(w * h * 3);
+        img_rgb_.step = w * 3;
+
+        // fill camera info with the parameters provided by the camera
+        if (rgb_info_.D.size() == 0)
+          setupCameraInfo(data.stereoCameraParameters.colorIntrinsics, rgb_info_);
+
+        if (depth_info_.D.size() == 0)
+        {
+          setupCameraInfo(data.stereoCameraParameters.depthIntrinsics, depth_info_);
+          //depth_info_.K[0] = 252.12;
+          //depth_info_.P[0] = depth_info_.K[0];
+          //depth_info_.K[4] = 252.72;
+          //depth_info_.P[5] = depth_info_.K[4];
+        }
+      }
+
+      {
+        boost::unique_lock<boost::mutex> lock(depth_mutex_);
+
+        std::memcpy(img_depth_.data.data(), data.depthMapFloatingPoint, img_depth_.data.size());
+        for (int count = 0; count < img_depth_.width * img_depth_.height; count++)
+        {
+          // Saturated pixels on depthMapFloatingPoint have -1 value, but on openni are NaN
+          if (data.depthMapFloatingPoint[count] < 0.0)
+          {
+            *reinterpret_cast<float*>(&img_depth_.data[count*sizeof(float)]) =
+                std::numeric_limits<float>::quiet_NaN();
+                  continue;
+          }
+        }
+
+        img_depth_.header.stamp = ros::Time::now();
+        depth_info_.header = img_depth_.header;
+      }
+      depth_cond_.notify_all();
+    }*/
 
     static void
     initialize()
@@ -266,9 +532,9 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
       // Get RGB data
       context_.requestControl(color_node_);
       color_node_.setEnableColorMap(true);
-      DepthSense::ColorNode::Configuration color_configuration(DepthSense::FRAME_FORMAT_QVGA, 30,
+      DepthSense::ColorNode::Configuration color_configuration(DepthSense::FRAME_FORMAT_QVGA, 25,
                                                                DepthSense::POWER_LINE_FREQUENCY_50HZ,
-                                                               DepthSense::COMPRESSION_TYPE_YUY2);
+                                                               DepthSense::COMPRESSION_TYPE_YUY2); //30
       color_node_.setConfiguration(color_configuration);
       context_.releaseControl(color_node_);
 
@@ -281,11 +547,11 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
       }
       if (hasImageType(Reader::POINTS3D))
         depth_node_.setEnableVerticesFloatingPoint(true);
-      DepthSense::DepthNode::DepthNode::Configuration depth_configuration(DepthSense::FRAME_FORMAT_QVGA, 30,
+      DepthSense::DepthNode::DepthNode::Configuration depth_configuration(DepthSense::FRAME_FORMAT_QVGA, 25,
                                                                           DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE,
-                                                                          true);
+                                                                          true); //30
       depth_node_.setConfiguration(depth_configuration);
-      depth_node_.setConfidenceThreshold(50);
+      depth_node_.setConfidenceThreshold(100); //50
       context_.releaseControl(depth_node_);
 
       // connect a callback to the newSampleReceived event of the color node
@@ -377,6 +643,12 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
       return depth_info_;
     }
 
+    sensor_msgs::PointCloud2
+    getDataCloud() const
+    {
+      return cloud_;
+    }
+
     void
     setCamInfoColor(const sensor_msgs::CameraInfo &camInfoColor) const
     {
@@ -425,6 +697,8 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
     static boost::mutex depth_mutex_;
     static boost::condition_variable color_cond_;
     static boost::condition_variable depth_cond_;
+
+    static sensor_msgs::PointCloud2 cloud_;
   };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -451,6 +725,8 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
   boost::mutex ReaderImpl::depth_mutex_;
   boost::condition_variable ReaderImpl::color_cond_;
   boost::condition_variable ReaderImpl::depth_cond_;
+
+  sensor_msgs::PointCloud2 ReaderImpl::cloud_;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -534,5 +810,11 @@ void setupCameraInfo(const DepthSense::IntrinsicParameters& params, sensor_msgs:
   Reader::setCamInfoDepth(const sensor_msgs::CameraInfo &camInfoDepth)
   {
     impl_->setCamInfoDepth(camInfoDepth);
+  }
+
+  sensor_msgs::PointCloud2
+  Reader::getDataCloud()
+  {
+    return impl_->getDataCloud();
   }
 }

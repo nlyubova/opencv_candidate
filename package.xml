@@ -9,9 +9,8 @@
 
   <url>https://github.com/wg-perception/opencv_candidate</url>
 
-  <build_depend>cv_bridge</build_depend>
-
-  <run_depend>cv_bridge</run_depend>
-
   <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>pcl_ros</build_depend>
+  <run_depend>pcl_ros</run_depend>
 </package>
